@@ -1,0 +1,18 @@
+import { JSDOM, VirtualConsole } from 'jsdom';
+const f = process.argv[2];
+const errs = []; const vc = new VirtualConsole();
+vc.on('jsdomError', e => errs.push(e.message || String(e)));
+const dom = JSDOM.fromFile(f, { runScripts: 'dangerously', pretendToBeVisual: true, virtualConsole: vc, url: 'file://' + f, resources: 'usable' });
+const w = (await dom).window, d = w.document;
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const t0 = Date.now();
+while (Date.now() - t0 < 6000 && d.querySelectorAll('.card').length === 0) await wait(100);
+await wait(600);
+const cards = d.querySelectorAll('.card').length;
+const imgs = [...d.querySelectorAll('.card img')];
+const badIcons = imgs.filter(i => !i.src.startsWith('file:')).length;
+const loadedIcons = imgs.length - badIcons;
+const real = errs.filter(e => !/Not implemented/.test(e));
+console.log(JSON.stringify({ cards, loadedIcons, badIcons, stat: d.getElementById('stat').textContent, errs: real.slice(0, 3) }));
+w.close();
+process.exit(cards > 50 && badIcons === 0 && real.length === 0 ? 0 : 1);
